@@ -1,28 +1,33 @@
-export function route<T extends string>(
-  path: T,
-  params?: Record<string, any>
-): T {
-  if (params) {
-    const segments = path.split(/\/+/).map((segment) => {
-      if (segment.startsWith(":")) {
-        const key = segment.replace(":", "").replace("?", "");
-
-        if (key in params) {
-          return params[key];
-        }
-
-        // If the segment is optional and it doesn't exist in params, return null to omit it from the resulting path
-        if (segment.endsWith("?")) {
-          return null;
-        }
-      }
-
-      return segment;
-    });
-
-    // Filter out any null/undefined segments and join remaining segments
-    return segments.filter((value) => value != null).join("/") as T;
+export function route<T extends string>(path: T, params: Record<string, any> = {}): T {
+  if (!path.includes('?') && !path.includes(':')) {
+    return path;
   }
 
-  return path;
+  let realPath = "";
+  let currentIndex = path.length;
+  let lastSegmentHadParam = false;
+
+  while (currentIndex > 0) {
+    const startSegmentIndex = path.lastIndexOf('/', currentIndex);
+    const segment = path.slice(startSegmentIndex, currentIndex + 1);
+    currentIndex = startSegmentIndex - 1;
+
+    if (segment.startsWith('/:')) {
+      const paramName = segment.endsWith('?') ? segment.slice(2, -1) : segment.slice(2);
+      const paramValue = params[paramName];
+      if (paramValue !== undefined) {
+        lastSegmentHadParam = true;
+        realPath = '/' + paramValue + realPath;
+      }
+    } else if (segment.endsWith('?')) {
+      if (lastSegmentHadParam) {
+        realPath = segment.slice(0, -1) + realPath;
+      }
+    } else {
+      lastSegmentHadParam = false;
+      realPath = segment + realPath;
+    }
+  }
+
+  return realPath as T;
 }
